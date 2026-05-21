@@ -1,4 +1,4 @@
-name: Build Android APK (Final Fixed Version)
+name: Build Android APK (Ultimate Stable Version)
 
 on:
   push:
@@ -28,10 +28,7 @@ jobs:
 
     - name: Generate Auto Debug Keystore (Fix Signing Error)
       run: |
-        # توليد ملف مفتاح التوقيع الافتراضي لحل مشكلة validateSigningDebug
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-        
-        # إذا كان مشروعك يبحث عنه داخل مجلد app، ننسخه هناك أيضاً للاحتياط
         if [ -d "app" ]; then
           cp debug.keystore app/debug.keystore
         fi
@@ -40,8 +37,13 @@ jobs:
       run: |
         chmod +x gradlew || true
 
-    - name: Clean and Build Debug APK
-      run: ./gradlew clean assembleDebug --stacktrace
+    - name: Clean and Build Debug APK (With Headless & KSP Fixes)
+      run: |
+        # إجبار الجافا والـ KSP على العمل في الوضع الصامت تماماً ومنع الـ NullPointerException
+        ./gradlew clean assembleDebug \
+          -Djava.awt.headless=true \
+          -Dorg.gradle.daemon=false \
+          --stacktrace
 
     - name: Upload and Deliver Final APK
       uses: actions/upload-artifact@v4
