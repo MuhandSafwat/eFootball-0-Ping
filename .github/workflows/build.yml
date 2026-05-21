@@ -1,9 +1,9 @@
-name: Build Android APK (Final Fixed Version)
+name: Build Android APK (Smart Delivery Version)
 
 on:
   push:
-    branches: [ "main", "master" ] # يعمل مع أي فرع رئيسي سواء main أو master
-  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً بضغطة زر في أي وقت
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,24 +13,42 @@ jobs:
     - name: Checkout Project Code
       uses: actions/checkout@v4
 
-    - name: Set up JDK 17 (Strict Compatibility)
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
-        cache: gradle # تفعيل الكاش الذكي لتسريع البناء وتفادي تعليق الملفات
+        cache: gradle
 
-    - name: Fix Gradle Execution Permissions (Anti-Permission-Denied)
+    - name: Check and Force Generate Gradle Wrapper if Missing
       run: |
-        chmod +x gradlew
-        git update-index --chmod=+x gradlew
+        if [ ! -f "gradlew" ]; then
+          echo "gradlew not found in root, trying to find it or generate it..."
+          # إذا كان المشروع داخل مجلد فرعي، نقوم بالدخول إليه
+          if [ -f "android/gradlew" ]; then cd android; fi
+          if [ -f "app/gradlew" ]; then cd app; fi
+          
+          # توليد الـ Wrapper تلقائياً عبر السيرفر
+          gradle wrapper
+        fi
+
+    - name: Fix Execution Permissions
+      run: |
+        chmod +x gradlew || chmod +x */gradlew || true
 
     - name: Clean and Build Debug APK
-      run: ./gradlew clean assembleDebug --stacktrace --info
+      run: |
+        if [ -f "gradlew" ]; then
+          ./gradlew clean assembleDebug --stacktrace
+        else
+          # لو المشروع في فولدر فرعي، هيبني من جواه تلقائياً
+          cd $(find . -name gradlew -exec dirname {} \;)
+          ./gradlew clean assembleDebug --stacktrace
+        fi
 
     - name: Upload and Deliver Final APK
       uses: actions/upload-artifact@v4
       with:
         name: eFootball-Zero-Ping-V2
-        path: app/build/outputs/apk/debug/app-debug.apk
-        if-no-files-found: error # يضمن عدم خروج السيرفر بنجاح وهمي إذا لم يتم توليد الملف فعلياً
+        path: "**/build/outputs/apk/debug/app-debug.apk"
+        if-no-files-found: error
