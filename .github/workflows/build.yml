@@ -1,0 +1,36 @@
+name: Build Android APK (Final Fixed Version)
+
+on:
+  push:
+    branches: [ "main", "master" ] # يعمل مع أي فرع رئيسي سواء main أو master
+  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً بضغطة زر في أي وقت
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Project Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17 (Strict Compatibility)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        cache: gradle # تفعيل الكاش الذكي لتسريع البناء وتفادي تعليق الملفات
+
+    - name: Fix Gradle Execution Permissions (Anti-Permission-Denied)
+      run: |
+        chmod +x gradlew
+        git update-index --chmod=+x gradlew
+
+    - name: Clean and Build Debug APK
+      run: ./gradlew clean assembleDebug --stacktrace --info
+
+    - name: Upload and Deliver Final APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: eFootball-Zero-Ping-V2
+        path: app/build/outputs/apk/debug/app-debug.apk
+        if-no-files-found: error # يضمن عدم خروج السيرفر بنجاح وهمي إذا لم يتم توليد الملف فعلياً
