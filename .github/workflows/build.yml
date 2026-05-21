@@ -1,4 +1,4 @@
-name: Build Android APK (Smart Delivery Version)
+name: Build Android APK (Final Fixed Version)
 
 on:
   push:
@@ -23,28 +23,25 @@ jobs:
     - name: Check and Force Generate Gradle Wrapper if Missing
       run: |
         if [ ! -f "gradlew" ]; then
-          echo "gradlew not found in root, trying to find it or generate it..."
-          # إذا كان المشروع داخل مجلد فرعي، نقوم بالدخول إليه
-          if [ -f "android/gradlew" ]; then cd android; fi
-          if [ -f "app/gradlew" ]; then cd app; fi
-          
-          # توليد الـ Wrapper تلقائياً عبر السيرفر
           gradle wrapper
+        fi
+
+    - name: Generate Auto Debug Keystore (Fix Signing Error)
+      run: |
+        # توليد ملف مفتاح التوقيع الافتراضي لحل مشكلة validateSigningDebug
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        
+        # إذا كان مشروعك يبحث عنه داخل مجلد app، ننسخه هناك أيضاً للاحتياط
+        if [ -d "app" ]; then
+          cp debug.keystore app/debug.keystore
         fi
 
     - name: Fix Execution Permissions
       run: |
-        chmod +x gradlew || chmod +x */gradlew || true
+        chmod +x gradlew || true
 
     - name: Clean and Build Debug APK
-      run: |
-        if [ -f "gradlew" ]; then
-          ./gradlew clean assembleDebug --stacktrace
-        else
-          # لو المشروع في فولدر فرعي، هيبني من جواه تلقائياً
-          cd $(find . -name gradlew -exec dirname {} \;)
-          ./gradlew clean assembleDebug --stacktrace
-        fi
+      run: ./gradlew clean assembleDebug --stacktrace
 
     - name: Upload and Deliver Final APK
       uses: actions/upload-artifact@v4
